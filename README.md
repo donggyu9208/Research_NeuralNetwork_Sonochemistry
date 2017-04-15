@@ -10,3 +10,5 @@ Correctly outputs:
   Minimum Error
   Optimal Number of Neurons
   Optimal Learning Rate
+
+V4 Includes line graph and bar graph

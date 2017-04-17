@@ -3,9 +3,9 @@
   library('neuralnet')
   library('mlr')
   library('caret')
-  library(ggplot2)
-  library(ggalt)
-  library(reshape2)
+  library('ggplot2')
+  library('ggalt')
+  library('reshape2')
   
   
   ######################################### RAW DATA ########################################
@@ -167,7 +167,7 @@
   ## Temperature
   names(temp_323_both) <- c("Temperature", "Predicted", "Experimental")
   temp_323_both.melt <- melt(temp_323_both, id.vars = 'Temperature')
-  (
+  temp_323_graph <- (
   ggplot(temp_323_both.melt, aes(x = Temperature, 
                                  y = value, 
                                  shape = variable, 
@@ -184,7 +184,7 @@
   ## Power
   names(power_323_both) <- c("Power", "Predicted", "Experimental")
   power_323_both.melt <- melt(power_323_both, id.vars = 'Power')
-  (
+  power_323_graph <- (
     ggplot(power_323_both.melt, aes(x = Power, 
                                    y = value, 
                                    shape = variable, 
@@ -200,11 +200,11 @@
   
   ## Gas
   gas_323_both.melt <- melt(gas_323_both, id.vars = 'gas')
-  (
+  gas_323_graph <- (
   ggplot(data=gas_323_both.melt, aes(x=gas, y=value, fill=variable)) 
     + geom_bar(stat="identity", position=position_dodge())
     + scale_y_continuous(name = "mean sulfate (mM)", breaks = 0:7 * 0.2, limits = c(0, 1.1))
     + labs(fill = "")
-    + coord_cartesian(ylim=c(0.5, 1.05))
+    + coord_cartesian(ylim=c(0, 1.05))
   )
   

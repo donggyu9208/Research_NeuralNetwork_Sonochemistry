@@ -17,26 +17,49 @@ Ar_O2 <- (gas[,3])
 He <- (gas[,4])
 O2 <- (gas[,5])
 
-frequency_611 <-rep(611, 25) # [=] kHz
+frequency_611 <-rep(611, 25) # kHz
 power_611 <- c(39,	68,	104,	139,	175,	39,	68,	104,	139,	175,	39, 68,	104,	139,	175,	39,	68,	104,	139,	175,	39,	68,	104,	139	,175)
-surfate_conc_611 <- c(0.1247,	0.0566,	0.129,	0.0575,	0.0038,	0.1461,	0.0592,	0.0583,	0.0162,	0.093,	0.1356,	0.0597,	0.0752,	0.1251,	0.0703	,0.1338,	0.0162,	0.0642,	0.0525,	0.0529,	0.0785,	0.0826,	0.1255,	0.0564,	0.0534)
+sulfate_conc_611 <- c(0.1247,	0.0566,	0.129,	0.0575,	0.0038,	0.1461,	0.0592,	0.0583,	0.0162,	0.093,	0.1356,	0.0597,	0.0752,	0.1251,	0.0703	,0.1338,	0.0162,	0.0642,	0.0525,	0.0529,	0.0785,	0.0826,	0.1255,	0.0564,	0.0534)
 # Put all reqindividual data in a table
-full_data <- data.frame(frequency = frequency_611, temperature = temperature, power = power_611, air = air, Ar = Ar, Ar_O2 = Ar_O2, He = He, O2 = O2, surfate_conc = surfate_conc_611)
+full_data <- data.frame(frequency = frequency_611, temperature = temperature, power = power_611, air = air, Ar = Ar, Ar_O2 = Ar_O2, He = He, O2 = O2, sulfate_conc = sulfate_conc_611)
 
-############################### RUNNING NEURAL NETWORK ###########################################
+############################### K-FOLD CROSS VALIDATION WITH NEURAL NETWORK (K = 10) ######################################
 
-min_error <- 1
+k <- 10
+## 90% of the sample size
+training_sample_size <- floor(0.9 * nrow(full_data)) ## 90% of training set
+
+## set the seed to make your partition reproductible
+set.seed(1)
+## This randomly shuffles the data
+cv_error_array <- NULL
+shuffled_data <- full_data[sample(nrow(full_data)),]
+
+#Create k-equally sized folds
+folds <- cut(seq(1,nrow(shuffled_data)),breaks=k,labels=FALSE)
+
 learning_rate <- c(0.3, 0.2, 0.1, 0.05, 0.04, 0.03, 0.02, 0.01, 0.0001)
+min_cv_error <- 1
 
 for (lr_i in 1:length(learning_rate)) {
   curr_learningRate = learning_rate[lr_i]
   for (neuron in 1:100) {
-    net.data <- neuralnet(surfate_conc ~ frequency + temperature + power + air + Ar + Ar_O2 + He + O2,
-                          full_data, hidden = neuron, err.fct = 'sse', act.fct = 'logistic', linear.output = FALSE,
-                          learningrate = curr_learningRate)
-    error <- net.data$result.matrix[1,]
-    if (min_error > error) {
-      min_error <- error
+    for(i in 1:k) {
+      #Segement your data by fold using the which() function 
+      testIndexes <- which(folds==i,arr.ind=TRUE)
+      test_data <- shuffled_data[testIndexes, ]
+      train_data <- shuffled_data[-testIndexes, ]
+      net.data <- neuralnet(sulfate_conc ~ frequency + temperature + power + air + Ar + Ar_O2 + He + O2, train_data, 
+                              hidden = neuron, err.fct = 'sse', act.fct = 'logistic', linear.output = FALSE, learningrate = curr_learningRate)
+  
+      predict.data <- neuralnet::compute(net.data, test_data[,1:8]) ## Predicts the sulfate_conc with the test_data parameters
+      cv_error_array[i] <- sum((predict.data$net.result - test_data[,9])^2)/nrow(test_data)
+    }
+    
+    cv_error <- mean(cv_error_array)
+    
+    if (min_cv_error > cv_error) {
+      min_cv_error <- cv_error
       best_neuron <- neuron
       best_learning_rate <- curr_learningRate
       best_startweights <- net.data$startweights
@@ -44,20 +67,20 @@ for (lr_i in 1:length(learning_rate)) {
   }
 }
 
-############################# RESULTING DATA ##################################
-net.data <- neuralnet(surfate_conc ~ frequency + temperature + power + air + Ar + Ar_O2 + He + O2, full_data, 
+net.data <- neuralnet(sulfate_conc ~ frequency + temperature + power + air + Ar + Ar_O2 + He + O2, full_data, 
                       hidden = best_neuron, startweights = best_startweights, 
                       err.fct = 'sse', act.fct = 'logistic', linear.output = FALSE, learningrate = best_learning_rate)
 
 net.data$net.result
-net.data$data$surfate_conc
+net.data$data$sulfate_conc
 net.data$result.matrix[1,]
 predict.data <- neuralnet::compute(net.data, full_data[,1:8])
 predict.data$net.result
 df <- data.frame(net.data$net.result, net.data$response)
-scaled_df <- data.frame(df[,1],df[,2]) # Scaling back to the original 
+scaled_df <- data.frame(df[,1] * 10,df[,2] * 10) # Scaling back to the original 
 names(scaled_df)[1]<- paste("predicted")
 names(scaled_df)[2]<- paste("desired")
+scaled_df
 
 
 ########################################################## Calculating mean_sulfate###########################

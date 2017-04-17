@@ -57,7 +57,7 @@ net.data$result.matrix[1,]
 predict.data <- neuralnet::compute(net.data, full_data[,1:8])
 predict.data$net.result
 df <- data.frame(net.data$net.result, net.data$response)
-scaled_df <- data.frame(df[,1],df[,2]) # Scaling back to the original 
+scaled_df <- data.frame(df[,1] * 10,df[,2] * 10) # Scaling back to the original 
 names(scaled_df)[1]<- paste("predicted")
 names(scaled_df)[2]<- paste("desired")
 scaled_df
@@ -100,3 +100,106 @@ best_learning_rate
 temp_581_meanS 
 power_581_meanS
 gas_581_meanS
+
+#################################### Experimental Data #####################################################
+temp_581_exp <- data.frame(c(5, 10, 20, 35, 50), c(0.6596, 0.7554, 0.7514, 0.8496, 0.7480))
+power_581_exp <- data.frame(c(49, 81, 117, 153, 185), c(0.8962, 0.7350, 0.8234, 0.5074, 0.8020))
+gas_581_exp <- data.frame(c('He', 'Air', 'O2', 'Ar', 'Ar/O2'), c(0.8226, 0.5676, 1.0820, 0.8926, 0.3992))
+
+temp_581_both <- data.frame(temp = temp_581_exp[, 1], predicted = temp_581_meanS[, 2], experimental = temp_581_exp[, 2])
+power_581_both <- data.frame(power = power_581_exp[, 1], predicted = power_581_meanS[, 2], experimental = power_581_exp[, 2])
+gas_581_both <-data.frame(gas = gas_581_exp[, 1], predicted = gas_581_meanS[, 2], experimental = gas_581_exp[, 2])
+#####################################MULTIPLE GRAPH FUNCTION ###############################
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+################################### Graph Predictive vs Actual ###########################
+## Width: 781
+## Height: 384
+##
+## Temperature
+names(temp_581_both) <- c("Temperature", "Predicted", "Experimental")
+temp_581_both.melt <- melt(temp_581_both, id.vars = 'Temperature')
+(
+  ggplot(temp_581_both.melt, aes(x = Temperature, 
+                                 y = value, 
+                                 shape = variable, 
+                                 color = variable))
+  + geom_point() 
+  + geom_xspline(spline_shape=-0.4,size= 0.7)
+  + scale_x_continuous(name = "Temperature (C)", breaks = 0:6 * 10, limits = c(0, 55))
+  + scale_y_continuous(name = "mean sulfate (mM)", breaks = 0:24 * 0.05, limits = c(0.7, 1))
+  #+ scale_color_manual(values = c("Predicted" = 'red','Experimental' = 'blue')) 
+  + scale_shape_manual(values = c('Predicted' = 17, 'Experimental' = 16))
+  + labs(color = "", shape = "")
+)
+
+## Power
+names(power_581_both) <- c("Power", "Predicted", "Experimental")
+power_581_both.melt <- melt(power_581_both, id.vars = 'Power')
+(
+  ggplot(power_581_both.melt, aes(x = Power, 
+                                  y = value, 
+                                  shape = variable, 
+                                  color = variable))
+  + geom_point() 
+  + geom_xspline(spline_shape=-0.4,size= 0.7)
+  + scale_x_continuous(name = "Power (W)", breaks = 0:6 * 10, limits = c(10, 55))
+  + scale_y_continuous(name = "mean sulfate (mM)", breaks = 0:7 * 0.2, limits = c(0.4, 1.3))
+  #+ scale_color_manual(values = c("Predicted" = 'red','Experimental' = 'blue')) 
+  + scale_shape_manual(values = c('Predicted' = 17, 'Experimental' = 16))
+  + labs(color = "", shape = "")
+)
+
+## Gas
+gas_581_both.melt <- melt(gas_581_both, id.vars = 'gas')
+(
+  ggplot(data=gas_581_both.melt, aes(x=gas, y=value, fill=variable)) 
+  + geom_bar(stat="identity", position=position_dodge())
+  + scale_y_continuous(name = "mean sulfate (mM)", breaks = 0:7 * 0.2, limits = c(0, 1.1))
+  + labs(fill = "")
+  + coord_cartesian(ylim=c(0.5, 1.05))
+)
